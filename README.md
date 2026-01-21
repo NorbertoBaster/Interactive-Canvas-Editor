@@ -1,123 +1,124 @@
-# Interactive Canvas Editor
+Interactive Canvas Editor
 
 An interactive, node-based canvas editor inspired by tools like Miro, Whimsical, and Excalidraw.
 
-This project focuses on complex client-side interaction, state management, and performance-conscious React patterns using **Next.js App Router**.
+Built to showcase complex frontend interaction, state management, and performance-aware React patterns using Next.js App Router.
 
----
+✨ Features
 
-## ✨ Features
+Create nodes by clicking on the canvas
 
-- Create nodes by clicking on the canvas
-- Drag single or multiple selected nodes
-- Inline text editing
-- Connect nodes with edges
-- Select and delete nodes or edges
-- Keyboard shortcuts:
-  - `Delete / Backspace` – delete selection
-  - `Esc` – clear selection
-  - `Ctrl / Cmd + A` – select all
-- Pan & zoom support
-- Persistent state (nodes, edges, viewport) via `localStorage`
+Drag single or multiple selected nodes
 
----
+Inline text editing
 
-## 🧠 Technical Focus
+Connect nodes with edges
 
-This project intentionally emphasizes **interactive frontend architecture** over backend complexity.
+Select and delete nodes or edges
 
-Key areas demonstrated:
-- Managing complex UI state without external state libraries
-- Combining declarative React state with imperative refs
-- Precise mouse & keyboard event handling
-- SVG + DOM coordination
-- Persistence and serialization of editor state
+Empty-state onboarding guidance (no blank screen)
 
----
+Clear Canvas button for demo/reset
 
-## 🏗️ Architecture Overview
+Keyboard shortcuts:
 
-### Core Concepts
+Delete / Backspace – delete selection
 
-- **Canvas**  
-  Owns global state: nodes, edges, selection, viewport.
+Esc – clear selection
 
-- **CanvasNode**  
-  Pure presentational + interaction component (drag, edit, select).
+Ctrl / Cmd + A – select all
 
-- **Edges**  
-  Rendered using SVG and synced to node positions.
+? – toggle in-app help
 
-- **Viewport**  
-  Controls pan and zoom using CSS transforms.
+Pan & zoom support
 
-### Why refs are used for dragging
+Persistent state (nodes, edges, viewport) via localStorage
 
-Drag state is stored in `useRef` instead of React state to:
-- Avoid re-renders on every mouse movement
-- Maintain smooth dragging performance
-- Separate transient interaction state from persistent UI state
+🧭 First-Time User Experience
 
----
+When the canvas is empty, the editor provides:
 
-## 🧪 State Management Decisions
+Visual guidance prompting users to create their first node
 
-- No global state library (Redux/Zustand)  
-  → Local component state is sufficient and clearer for this scope.
+Discoverable interactions without reading documentation
 
-- No canvas/WebGL rendering  
-  → DOM + SVG allow easier hit testing, accessibility, and styling.
+The goal is immediate usability within seconds.
 
-- No backend  
-  → The focus is frontend interaction patterns, not CRUD infrastructure.
+🧠 Technical Focus
 
----
+This project emphasizes interactive frontend architecture over backend complexity.
 
-## 💾 Persistence Strategy
+It demonstrates:
 
-The following data is persisted in `localStorage`:
-- Nodes
-- Edges
-- Viewport position and zoom level
+Managing complex UI state without external state libraries
 
-This allows the editor to restore the exact state on reload, similar to real-world design tools.
+Mixing declarative React state with imperative refs for performance
 
----
+Precise mouse & keyboard event handling
 
-## 🚧 Tradeoffs & Future Improvements
+SVG + DOM coordination
 
-If this were expanded further:
-- Add undo / redo history
-- Edge snapping & connection handles
-- Minimap overview
-- Multi-user collaboration
-- Backend persistence
+Persistence and serialization of editor state
 
-These were intentionally excluded to keep the focus on core interaction quality.
+🏗️ Architecture Overview
 
----
+Canvas – owns global state (nodes, edges, selection, viewport)
 
-## 🛠️ Tech Stack
+CanvasNode – presentational + interaction component
 
-- Next.js (App Router)
-- React
-- TypeScript
-- Tailwind CSS (minimal use)
-- SVG for edges
+Edges – rendered via SVG and synced to node positions
 
----
+Viewport – pan & zoom via CSS transforms
 
-## 🎯 What This Project Demonstrates
+Why refs for dragging?
+To avoid re-renders on every mouse move and keep dragging smooth.
 
-- Comfort with complex interactive UIs
-- Understanding of React performance tradeoffs
-- Ability to design scalable frontend architecture
-- Attention to real-world UX details
+💾 Persistence
 
----
+Stored in localStorage:
 
-## 🚀 Getting Started
+Nodes
 
-```bash
+Edges
+
+Viewport position and zoom level
+
+The editor restores its exact state on reload.
+
+🚧 Future Improvements
+
+Undo / redo
+
+Edge snapping
+
+Minimap
+
+Collaboration
+
+Backend persistence
+
+🛠️ Tech Stack
+
+Next.js (App Router)
+
+React
+
+TypeScript
+
+Tailwind CSS
+
+SVG
+
+🎯 What This Project Shows
+
+Ability to build complex interactive UIs
+
+Strong React fundamentals and performance awareness
+
+Thoughtful UX and onboarding decisions
+
+Scalable frontend architecture
+
+🚀 Getting Started
 npm install
 npm run dev

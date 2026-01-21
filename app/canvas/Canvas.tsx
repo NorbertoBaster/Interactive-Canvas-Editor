@@ -2,16 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import CanvasNode from './CanvasNode';
-import type { CanvasNode as Node, Edge } from '@/lib/types';
-import {
-  loadNodes,
-  saveNodes,
-  loadEdges,
-  saveEdges,
-  loadViewport,
-  saveViewport,
-  type Viewport,
-} from '@/lib/storage';
+import type { CanvasNode as Node } from '@/lib/types';
+import { loadNodes, saveNodes } from '@/lib/storage';
 
 type DragState = {
   mouse: { x: number; y: number };
@@ -20,72 +12,75 @@ type DragState = {
 
 export default function Canvas() {
   const [nodes, setNodes] = useState<Node[]>(() => loadNodes());
-  const [edges, setEdges] = useState<Edge[]>(() => loadEdges());
-  const [viewport, setViewport] = useState<Viewport>(() => loadViewport());
-
-  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showHelp, setShowHelp] = useState(false);
 
   const dragStart = useRef<DragState>(null);
 
   /* ------------------ persistence ------------------ */
 
-  useEffect(() => saveNodes(nodes), [nodes]);
-  useEffect(() => saveEdges(edges), [edges]);
-  useEffect(() => saveViewport(viewport), [viewport]);
+  useEffect(() => {
+    saveNodes(nodes);
+  }, [nodes]);
 
-  /* ------------------ helpers ------------------ */
+  /* ------------------ keyboard shortcuts ------------------ */
 
-  function getNode(id: string) {
-    return nodes.find(n => n.id === id);
-  }
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      // Toggle help
+      if (e.key === '?') {
+        setShowHelp(true);
+      }
+
+      if (e.key === 'Escape') {
+        setShowHelp(false);
+      }
+
+      // Delete nodes
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        setNodes(prev => prev.filter(n => !selectedIds.has(n.id)));
+        setSelectedIds(new Set());
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedIds]);
 
   /* ------------------ selection ------------------ */
 
-  function handleNodeSelect(e: React.MouseEvent, node: Node) {
+  function handleSelect(
+    e: React.MouseEvent<HTMLDivElement>,
+    node: Node
+  ) {
     e.stopPropagation();
-    setSelectedEdgeId(null);
 
-    setSelectedNodeIds(prev => {
-      const next = new Set(prev);
-      if (e.shiftKey) {
-        next.has(node.id) ? next.delete(node.id) : next.add(node.id);
-      } else {
-        next.clear();
-        next.add(node.id);
-      }
-      return next;
-    });
+    setSelectedIds(new Set([node.id]));
 
     dragStart.current = {
       mouse: { x: e.clientX, y: e.clientY },
-      nodes: new Map(
-        nodes
-          .filter(n => selectedNodeIds.has(n.id) || n.id === node.id)
-          .map(n => [n.id, { x: n.x, y: n.y }])
-      ),
+      nodes: new Map([[node.id, { x: node.x, y: node.y }]]),
     };
-  }
-
-  function handleEdgeSelect(e: React.MouseEvent, id: string) {
-    e.stopPropagation();
-    setSelectedNodeIds(new Set());
-    setSelectedEdgeId(id);
   }
 
   /* ------------------ dragging ------------------ */
 
   function handleMouseMove(e: React.MouseEvent) {
-    if (!dragStart.current) return;
+    const drag = dragStart.current;
+    if (!drag) return;
 
-    const dx = (e.clientX - dragStart.current.mouse.x) / viewport.scale;
-    const dy = (e.clientY - dragStart.current.mouse.y) / viewport.scale;
+    const dx = e.clientX - drag.mouse.x;
+    const dy = e.clientY - drag.mouse.y;
 
     setNodes(prev =>
       prev.map(n => {
-        const start = dragStart.current!.nodes.get(n.id);
+        const start = drag.nodes.get(n.id);
         if (!start) return n;
-        return { ...n, x: start.x + dx, y: start.y + dy };
+        return {
+          ...n,
+          x: start.x + dx,
+          y: start.y + dy,
+        };
       })
     );
   }
@@ -103,101 +98,152 @@ export default function Canvas() {
 
     const newNode: Node = {
       id: crypto.randomUUID(),
-      x: (e.clientX - rect.left - viewport.x) / viewport.scale,
-      y: (e.clientY - rect.top - viewport.y) / viewport.scale,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
       text: 'New Node',
     };
 
     setNodes(prev => [...prev, newNode]);
-    setSelectedNodeIds(new Set([newNode.id]));
-    setSelectedEdgeId(null);
+    setSelectedIds(new Set([newNode.id]));
   }
 
-  /* ------------------ keyboard delete ------------------ */
+  /* ------------------ clear canvas ------------------ */
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedEdgeId) {
-          setEdges(prev => prev.filter(e => e.id !== selectedEdgeId));
-          setSelectedEdgeId(null);
-        } else if (selectedNodeIds.size) {
-          setNodes(prev => prev.filter(n => !selectedNodeIds.has(n.id)));
-          setEdges(prev =>
-            prev.filter(
-              e =>
-                !selectedNodeIds.has(e.from) &&
-                !selectedNodeIds.has(e.to)
-            )
-          );
-          setSelectedNodeIds(new Set());
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedNodeIds, selectedEdgeId]);
+  function clearCanvas() {
+    setNodes([]);
+    setSelectedIds(new Set());
+    localStorage.removeItem('nodes');
+  }
 
   /* ------------------ render ------------------ */
 
+  const isEmpty = nodes.length === 0;
+
   return (
-    <div
-      onClick={handleCanvasClick}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      style={{
-        width: '100vw',
-        height: '100vh',
-        background: '#f9fafb',
-        overflow: 'hidden',
-      }}
-    >
-      <div
+    <>
+      {/* Clear canvas button */}
+      <button
+        onClick={clearCanvas}
         style={{
-          transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.scale})`,
-          transformOrigin: '0 0',
-          position: 'relative',
-          width: '100%',
-          height: '100%',
+          position: 'fixed',
+          top: 16,
+          right: 16,
+          zIndex: 10,
+          padding: '6px 10px',
+          borderRadius: 6,
+          border: '1px solid #d1d5db',
+          background: 'white',
+          cursor: 'pointer',
         }}
       >
-        {/* EDGES */}
-        <svg
+        Clear canvas
+      </button>
+
+      {/* Help overlay */}
+      {showHelp && (
+        <div
+          onClick={() => setShowHelp(false)}
           style={{
-            position: 'absolute',
+            position: 'fixed',
             inset: 0,
-            pointerEvents: 'none',
+            background: 'rgba(0,0,0,0.4)',
+            zIndex: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          {edges.map(edge => {
-            const from = getNode(edge.from);
-            const to = getNode(edge.to);
-            if (!from || !to) return null;
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'white',
+              padding: 24,
+              borderRadius: 12,
+              width: 360,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            }}
+          >
+            <h2 style={{ fontSize: 18, marginBottom: 12 }}>
+              Keyboard shortcuts
+            </h2>
+            <ul style={{ fontSize: 14, color: '#374151', lineHeight: 1.6 }}>
+              <li><b>Click</b> — create node</li>
+              <li><b>Drag</b> — move node</li>
+              <li><b>Double-click</b> — edit text</li>
+              <li><b>Delete / Backspace</b> — delete selected</li>
+              <li><b>?</b> — open this help</li>
+              <li><b>Esc</b> — close</li>
+            </ul>
+          </div>
+        </div>
+      )}
 
-            return (
-              <line
-                key={edge.id}
-                x1={from.x}
-                y1={from.y}
-                x2={to.x}
-                y2={to.y}
-                stroke={edge.id === selectedEdgeId ? '#2563eb' : '#9ca3af'}
-                strokeWidth={2}
-                pointerEvents="stroke"
-                onClick={e => handleEdgeSelect(e, edge.id)}
-              />
-            );
-          })}
-        </svg>
+      {/* Canvas */}
+      <div
+        onClick={handleCanvasClick}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        style={{
+          width: '100vw',
+          height: '100vh',
+          position: 'relative',
+          overflow: 'hidden',
+          background: '#f9fafb',
+        }}
+      >
+        {/* Empty state */}
+        {isEmpty && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                width: 120,
+                height: 120,
+                borderRadius: '50%',
+                background: 'rgba(59,130,246,0.15)',
+                animation: 'pulse 2s ease-in-out infinite',
+              }}
+            />
 
-        {/* NODES */}
+            <div
+              style={{
+                position: 'relative',
+                textAlign: 'center',
+                color: '#6b7280',
+                fontSize: 16,
+              }}
+            >
+              <div style={{ fontSize: 18, marginBottom: 6 }}>
+                Click anywhere to create a node
+              </div>
+              <div>Press ? for help</div>
+            </div>
+
+            <style>{`
+              @keyframes pulse {
+                0% { transform: scale(0.9); opacity: 0.6; }
+                50% { transform: scale(1); opacity: 1; }
+                100% { transform: scale(0.9); opacity: 0.6; }
+              }
+            `}</style>
+          </div>
+        )}
+
         {nodes.map(node => (
           <CanvasNode
             key={node.id}
             node={node}
-            selected={selectedNodeIds.has(node.id)}
-            onSelect={e => handleNodeSelect(e, node)}
+            selected={selectedIds.has(node.id)}
+            onSelect={e => handleSelect(e, node)}
             onChange={updated =>
               setNodes(prev =>
                 prev.map(n => (n.id === updated.id ? updated : n))
@@ -206,6 +252,6 @@ export default function Canvas() {
           />
         ))}
       </div>
-    </div>
+    </>
   );
 }
