@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Test',
+  title: 'Canvas Editor',
 };
 
 export default function RootLayout({
